@@ -33,7 +33,7 @@ def parse_record(record):
 	return clean_record
 
 def map_transactions(trans, filepath):
-	csv_columns = ['stock','buy_date','buy_price','quantity','sell_date','sell_price']
+	csv_columns = ['stock','buy_date','buy_price','quantity','sell_date','sell_price','realized','profit','pnl','duration','cagr']
 	with open(filepath, 'w') as csvfile:
 		writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
 		writer.writeheader()
