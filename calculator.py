@@ -2,34 +2,12 @@ from datetime import date
 from scipy.optimize import newton
 import numpy as np
 
-def transactions(records, price):
+def _transactions(records, price):
     """
-
-    This function takes in the transaction records and returns the list of transactions
-    based on the exeution of trades. It uses FIFO method to match buy and sell transactions
-    This is used in calculation of realized & unrealized gains and CAGR at transaction level
-
-    INPUT
-    -----
-    record : A list of dictionary with the following keys
-        date - Date in datetime.date format
-        action - String either "Buy" and "Sell"
-        stock - The stock name or symbol
-        price - The buy or sell price
-        quantity - The quantity of the transactions
-    price : Price as of the calculation time
-
-    OUTPUT
-    ------
-    transactions :  A list of matched transactions with each transaction is a dict
-        stock - The stock name or symbol (string)
-        buy_date - The buy date of the transaction (datetime.date)
-        buy_price - The buy price of the transaction (float)
-        sell_date - The sell date of the transaction (datetime.date)
-        sell_price - The sell price of the transaction (float)
-        realized - If the gains are realized (boolean) 
-        quantity - The quantity of the transaction (integer)
-
+        This function takes in the transaction records and returns the list of transactions
+        based on the exeution of trades. It uses FIFO method to match buy and sell transactions
+        This is used in calculation of realized & unrealized gains and CAGR at transaction level
+        It is used by the transactions function for matching transactions of a single record.
     """
 
     records = sorted(records, key = lambda i: i['date'], reverse=True)
@@ -92,6 +70,62 @@ def transactions(records, price):
 
     return trans
 
+
+def transactions(records, prices):
+    """
+
+    This function takes in the transaction records and returns the list of transactions
+    based on the exeution of trades. It uses FIFO method to match buy and sell transactions
+    This is used in calculation of realized & unrealized gains and CAGR at transaction level
+
+    INPUT
+    -----
+    record : A list of dictionary with the following keys
+        date - Date in datetime.date format
+        action - String either "Buy" and "Sell"
+        stock - The stock name or symbol
+        price - The buy or sell price
+        quantity - The quantity of the transactions
+    price : A dict with the following keys
+        key - The stock name or symbol
+        value - The current value of the stock
+
+    OUTPUT
+    ------
+    transactions :  A list of matched transactions with each transaction is a dict
+        stock - The stock name or symbol (string)
+        buy_date - The buy date of the transaction (datetime.date)
+        buy_price - The buy price of the transaction (float)
+        sell_date - The sell date of the transaction (datetime.date)
+        sell_price - The sell price of the transaction (float)
+        realized - If the gains are realized (boolean) 
+        quantity - The quantity of the transaction (integer)
+
+    """
+
+    records_by_stock = {}
+    for record in records:
+        stock = record['stock']
+        try:
+            record_list = records_by_stock[stock]
+        except KeyError:
+            record_list = []
+            records_by_stock[stock] = record_list
+        record_list.append(record)
+
+    trans = []
+    for stock in records_by_stock:
+        records = records_by_stock[stock]
+        try:
+            price = prices[stock]
+        except KeyError:
+            price = 0.0
+        _trans = _transactions(records, price)
+        trans.extend(_trans)
+
+    return trans
+
+
 def cagr(transactions):
 
     """
@@ -149,34 +183,60 @@ def pnl(transactions):
 
     OUTPUT
     ------
-    realized profit :  Total realized profit
-    unrealized : Total realized profit
-    realized_pnl : % age realized profit on investment amound
-    unrealized_pnl : % age realized profit on investment amound
-
+    pnl : A dict containing pnl for each stock
+        key : Stock name or Symbol or 'TOTAL' for total P&L
+        value : A dict containing the following keys for P&L values
+            realized profit :  Total realized profit
+            unrealized : Total realized profit
+            realized_pnl : % age realized profit on investment amound
+            unrealized_pnl : % age realized profit on investment amound
     """
 
-    realized = 0
-    unrealized = 0
-    realized_investment = 0
-    unrealized_investment = 0
+    pnl = {}
 
     for tran in transactions:
+
+        stock = tran['stock']
+        try:
+            stock_pnl = pnl[stock]
+        except KeyError:
+            stock_pnl = {}
+            stock_pnl['realized'] = 0.0
+            stock_pnl['unrealized'] = 0.0
+            stock_pnl['realized_investment'] = 0.0
+            stock_pnl['unrealized_investment'] = 0.0
+            pnl[stock] = stock_pnl
+
+        try:
+            total_pnl = pnl['TOTAL']
+        except KeyError:
+            total_pnl = {}
+            total_pnl['realized'] = 0.0
+            total_pnl['unrealized'] = 0.0
+            total_pnl['realized_investment'] = 0.0
+            total_pnl['unrealized_investment'] = 0.0   
+            pnl['TOTAL'] = total_pnl     
         
         if tran['realized']:
-            realized += tran['profit']
-            realized_investment += tran['buy_price'] * tran['quantity']
+            stock_pnl['realized'] += tran['profit']
+            stock_pnl['realized_investment'] += tran['buy_price'] * tran['quantity']
+            total_pnl['realized'] += stock_pnl['realized']
+            total_pnl['realized_investment'] += stock_pnl['realized_investment']
         else:
-            unrealized += tran['profit']
-            unrealized_investment += tran['buy_price'] * tran['quantity']
+            stock_pnl['unrealized'] += tran['profit']
+            stock_pnl['unrealized_investment'] += tran['buy_price'] * tran['quantity']
+            total_pnl['unrealized'] += stock_pnl['unrealized']
+            total_pnl['unrealized_investment'] += stock_pnl['unrealized_investment']
 
-    realized_pnl = realized / realized_investment
-    unrealized_pnl = unrealized / unrealized_investment
+    for stock in pnl:
+        stock_pnl = pnl[stock]
+        stock_pnl['realized_pnl'] = 0.0 if stock_pnl['realized_investment'] == 0 else stock_pnl['realized'] / stock_pnl['realized_investment']
+        stock_pnl['unrealized_pnl'] = 0.0 if stock_pnl['unrealized_investment'] == 0 else stock_pnl['unrealized'] / stock_pnl['unrealized_investment']
 
-    return realized, unrealized, realized_pnl, unrealized_pnl
+    return pnl
 
 
-def cashflow(records, price):
+def cashflow(records, prices):
 
     """
     This function gives a cashflow based on trasaction records
@@ -189,7 +249,7 @@ def cashflow(records, price):
         stock - The stock name or symbol
         price - The buy or sell price
         quantity - The quantity of the transactions
-    price : Price as of the calculation time 
+    prices : A dict of the current prices of stocks 
 
     OUTPUT
     ------
@@ -200,10 +260,16 @@ def cashflow(records, price):
 
     """
 
-    quantity = 0
+    quantities = {}
     cashflow = {}
 
     for record in records:
+
+        stock = record['stock']
+        try:
+            quantity = quantities[stock]
+        except KeyError:
+            quantity = 0
 
         if record["action"] == 'Buy':
             quantity += record["quantity"]
@@ -213,7 +279,13 @@ def cashflow(records, price):
             quantity -= record["quantity"]
             cashflow[record['date']] = 1 * record["quantity"] * record['price']
 
-    cashflow[date.today()] = quantity * price
+        quantities[stock] = quantity
+
+    cashflow_today = 0
+    for stock in quantities:
+        cashflow_today += quantities[stock] * prices[stock]
+
+    cashflow[date.today()] = cashflow_today
 
     return cashflow
 
