@@ -39,5 +39,5 @@ def map_record(records, filepath):
     with open(filepath, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
         writer.writeheader()
-        for data in trans:
+        for data in records:
             writer.writerow(data)
