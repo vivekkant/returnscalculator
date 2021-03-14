@@ -10,6 +10,7 @@ def read_records_file(filepath):
                 clean_record = parse_record(row)
                 if clean_record is not None:
                     records.append(clean_record)
+
         return records
 
 def parse_record(record):

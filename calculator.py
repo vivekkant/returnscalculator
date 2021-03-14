@@ -1,5 +1,6 @@
 from datetime import date
 from scipy.optimize import newton
+from copy import deepcopy
 import numpy as np
 
 def _transactions(records, price):
@@ -111,16 +112,16 @@ def transactions(records, prices):
         except KeyError:
             record_list = []
             records_by_stock[stock] = record_list
-        record_list.append(record)
+        record_list.append(deepcopy(record))
 
     trans = []
     for stock in records_by_stock:
-        records = records_by_stock[stock]
+        stock_records = records_by_stock[stock]
         try:
             price = prices[stock]
         except KeyError:
             price = 0.0
-        _trans = _transactions(records, price)
+        _trans = _transactions(stock_records, price)
         trans.extend(_trans)
 
     return trans
@@ -220,13 +221,13 @@ def pnl(transactions):
         if tran['realized']:
             stock_pnl['realized'] += tran['profit']
             stock_pnl['realized_investment'] += tran['buy_price'] * tran['quantity']
-            total_pnl['realized'] += stock_pnl['realized']
-            total_pnl['realized_investment'] += stock_pnl['realized_investment']
+            total_pnl['realized'] += tran['profit']
+            total_pnl['realized_investment'] += tran['buy_price'] * tran['quantity']
         else:
             stock_pnl['unrealized'] += tran['profit']
             stock_pnl['unrealized_investment'] += tran['buy_price'] * tran['quantity']
-            total_pnl['unrealized'] += stock_pnl['unrealized']
-            total_pnl['unrealized_investment'] += stock_pnl['unrealized_investment']
+            total_pnl['unrealized'] += tran['profit']
+            total_pnl['unrealized_investment'] += tran['buy_price'] * tran['quantity']
 
     for stock in pnl:
         stock_pnl = pnl[stock]
@@ -271,13 +272,20 @@ def cashflow(records, prices):
         except KeyError:
             quantity = 0
 
+        try:
+            cashflow_item = cashflow[record['date']]
+        except KeyError:
+            cashflow_item = 0
+
         if record["action"] == 'Buy':
             quantity += record["quantity"]
-            cashflow[record['date']] = -1 * record["quantity"] * record['price']
+            amount = -1 * record["quantity"] * record['price']
+            cashflow[record['date']] = cashflow_item + amount
 
         elif record["action"] == 'Sell':
             quantity -= record["quantity"]
-            cashflow[record['date']] = 1 * record["quantity"] * record['price']
+            amount = 1 * record["quantity"] * record['price']
+            cashflow[record['date']] = cashflow_item + amount
 
         quantities[stock] = quantity
 
