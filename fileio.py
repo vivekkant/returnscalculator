@@ -1,4 +1,6 @@
 import csv
+import os
+import datetime
 
 records_cols={'date':'date', 'action':'action', 'stock':'stock', 'quantity':'quantity', 'price':'price'}
 prices_cols={'stock':'stock', 'price':'price'}
@@ -115,5 +117,17 @@ def map_cashflows(cashflow, filepath):
             item = {'date':tran, 'cashflow':cashflow[tran]}
             writer.writerow(item)
     
+
+def list_csv_files(filepath):
+    filelist = []
+    for parent_folder_path in os.listdir(filepath):
+        parent_folder = os.path.join(filepath, parent_folder_path)
+        if os.path.isdir(parent_folder):
+            for csv_file_path in os.listdir(parent_folder):
+                csv_file = os.path.join(parent_folder, csv_file_path)
+                filelist.append(csv_file)
+    return filelist
+
+
 
 

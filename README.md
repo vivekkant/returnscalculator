@@ -1,2 +1,6 @@
 # xirrcalculator
-A python module that calculates XIRR for a portfolio on annualised basis
+A python module that calculates varous returns CAGR, XIRR etc.
+
+print (i)
+hello this is editatble
+hello

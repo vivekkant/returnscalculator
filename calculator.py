@@ -338,4 +338,3 @@ def xirr(cashflow, guess=.10):
 
 
 
-
