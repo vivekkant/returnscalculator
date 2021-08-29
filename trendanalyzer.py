@@ -48,6 +48,32 @@ def get_portfolio_summary(csvfile):
 
     return summary
 
+def update_summary_data(summary):
+
+    summary.pop('filename')
+
+    cost = summary['cost']
+    value = summary['value']
+    gain = value - cost
+    
+    summary['gain'] = gain
+
+    if cost > 0 or cost < 0:
+        print(gain, cost)
+        gain_percent = (gain / cost) * 100
+        summary['gain %'] = gain_percent
+
+    return summary
+
+def is_error_summary(summary):
+
+    value = summary['value']
+    gain = summary['gain']
+
+    if float(value) == 0.0 or float(gain) == 0.0:
+        return False
+    
+    return True
 
 def map_portfolio_summary(filelist, summary_folder):
     """
@@ -68,20 +94,26 @@ def map_portfolio_summary(filelist, summary_folder):
             file_summary = portfolio_updates[filename]
         except KeyError:
             file_summary = []
-        file_summary.append(summary)
+
+        summary = update_summary_data(summary)
+
+        if is_error_summary(summary) is True:
+            file_summary.append(summary)
         portfolio_updates[filename] = file_summary
 
     for filename in portfolio_updates:
         
         print('Writing file....', filename)
         file_summary = portfolio_updates[filename]
+        file_summary_sorted = sorted(file_summary, key=lambda k: k['date'], reverse=False)
+
         summaryfile = os.path.join(summary_folder, filename)
 
-        csv_columns = ['filename','date','cost','value']
+        csv_columns = ['date','cost','value', 'gain', 'gain %']
         with open(summaryfile, 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
             writer.writeheader()
-            for data in file_summary:
+            for data in file_summary_sorted:
                 writer.writerow(data)            
 
 
